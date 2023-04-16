@@ -1,12 +1,22 @@
+# 1 "C:\\Users\\lukas\\AppData\\Local\\Temp\\tmpt1edmwdk"
+#include <Arduino.h>
+# 1 "C:/Users/lukas/OneDrive/Documents/PlatformIO/Projects/230120-142925-nodemcu-32s/src/esp32-smartmeter-reader.ino"
 #include "config.h"
 #include "mbedtls/aes.h"
 #include <FastCRC.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-
-// --------------- WIFI ---------------
-
+void SetupWifi();
+void ReconnectMQTT();
+void ReadSerialData();
+int BytesToInt(byte bytes[], unsigned int left, unsigned int right);
+void ParseReceivedData();
+bool ValidateCRC();
+void DecryptMessage(byte decrpyted_message[74]);
+void setup();
+void loop();
+#line 10 "C:/Users/lukas/OneDrive/Documents/PlatformIO/Projects/230120-142925-nodemcu-32s/src/esp32-smartmeter-reader.ino"
 void SetupWifi() {
   delay(10);
   console->println();
@@ -26,7 +36,7 @@ void SetupWifi() {
   console->println(WiFi.localIP());
 }
 
-// --------------- MQTT ---------------
+
 
 WiFiClient wifi_client;
 PubSubClient mqtt_client(wifi_client);
@@ -45,7 +55,7 @@ void ReconnectMQTT() {
   }
 }
 
-// --------------- SERIAL READER ---------------
+
 
 const unsigned int MESSAGE_LENGTH = 105;
 byte received_data[MESSAGE_LENGTH];
@@ -58,13 +68,16 @@ void ReadSerialData() {
   while (smart_meter->available() > 0) {
     byte current_byte = smart_meter->read();
     if (!receiving) {
-      // Starting sequence is 7E A0
+
+      console->println(received_data[0]);
+      console->println(received_data[1]);
+      console->println("-");
       if (previous_byte == 0x7E && current_byte == 0xA0) {
         receiving = true;
         received_data[0] = 0x7E;
         received_data[1] = 0xA0;
         pos = 2;
-      } 
+      }
     } else {
       if (pos < MESSAGE_LENGTH) {
         received_data[pos] = current_byte;
@@ -78,7 +91,7 @@ void ReadSerialData() {
   }
 }
 
-// -------------- DATA PARSER ---------------
+
 
 int BytesToInt(byte bytes[], unsigned int left, unsigned int right) {
   int result = 0;
@@ -89,16 +102,16 @@ int BytesToInt(byte bytes[], unsigned int left, unsigned int right) {
 }
 
 void ParseReceivedData() {
-  // Discard message if CRC check fails
+
   if (!ValidateCRC()) {
     return;
   }
 
-  // Decrypt message
+
   byte decrpyted_message[74];
   DecryptMessage(decrpyted_message);
 
-  // Extract time and date from decrypted message
+
   int year = BytesToInt(decrpyted_message, 22, 24);
   int month = BytesToInt(decrpyted_message, 24, 25);
   int day = BytesToInt(decrpyted_message, 25, 26);
@@ -108,7 +121,7 @@ void ParseReceivedData() {
   char timestamp[19];
   sprintf(timestamp, "%02d.%02d.%04d %02d:%02d:%02d", day, month, year, hour, minute, second);
 
-  // Create JSON
+
   StaticJsonDocument<256> doc;
   doc["timestamp"] = timestamp;
   doc["+A"] = BytesToInt(decrpyted_message, 35, 39)/1000.0;
@@ -122,14 +135,14 @@ void ParseReceivedData() {
   char payload[256];
   serializeJson(doc, payload);
 
-  // Publish JSON
+
   console->println(payload);
   if (MQTT_ENABLED) {
     mqtt_client.publish(MQTT_TOPIC, payload, false);
   }
 }
 
-// --------------- CRC VALIDATOR ---------------
+
 
 FastCRC16 CRC16;
 
@@ -145,26 +158,26 @@ bool ValidateCRC() {
   return true;
 }
 
-// --------------- DECRYPTOR ---------------
+
 
 mbedtls_aes_context aes;
 
 void DecryptMessage(byte decrpyted_message[74]) {
-  // Extract message and nonce from received data
+
   byte encrpyted_message[74] = {0};
   memcpy(encrpyted_message, received_data + 28, 74);
   byte nonce[16] = {0};
   memcpy(nonce, received_data + 14, 8);
   memcpy(nonce + 8, received_data + 24, 4);
-  nonce[15] = 0x02; 
+  nonce[15] = 0x02;
 
-  // Decrypt message
+
   size_t nc_off = 0;
   unsigned char stream_block[16] = {0};
   mbedtls_aes_crypt_ctr(&aes, 74, &nc_off, nonce, stream_block, encrpyted_message, decrpyted_message);
 }
 
-// --------------- SETUP & LOOP ---------------
+
 
 void setup() {
   console->begin(CONSOLE_BAUD_RATE);
