@@ -1,4 +1,14 @@
+
+
 # ESP32 Smart Meter Reader for Wiener Netze
+
+Platformio sketch to read and decrypt the data from my Smart Meter (Landis+Gyr E450 and Iskra AM550 / Wiener Netze) with an ESP32. Integrates into Home Assistant via MQTT.
+
+Tested with Iskra AM550.
+
+You have to enable the "Kundenschnittstelle" and get the encryption key from https://smartmeter-web.wienernetze.at.
+
+then edit the config.h to fit your setup. Connect the serial interface of the IR Adapter RX TO RX2 on the esp32.
 
 This Arduino sketch was made to read and decrypt the data from my Smart Meter (Landis+Gyr E450 operated by Wiener Netze) and publish it via MQTT. This way the data can be easily integrated into Home Assistant (see [here](#home-assistant-integration)). Although this sketch was made for the ESP32, it should also work with the ESP8266 after minor adjustments (more on that later). This project was only possible with the information from [this thread](https://www.lteforum.at/mobilfunk/wiener-netze-smart-meter-auslesen.16222/); thank you to everyone who shared their findings (especially the user "pocki").
 
