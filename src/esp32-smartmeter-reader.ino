@@ -57,8 +57,6 @@ void ReadSerialData() {
 
   while (smart_meter->available() > 0) {
     byte current_byte = smart_meter->read();
-    console->print("Packet Recieved: ");
-    console->println(current_byte);
     if (!receiving) {
       // Starting sequence is 7E A0
       if (previous_byte == 0x7E && current_byte == 0xA0) {
