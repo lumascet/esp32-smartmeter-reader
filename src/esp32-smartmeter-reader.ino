@@ -2,18 +2,29 @@
 #include "mbedtls/aes.h"
 #include <FastCRC.h>
 #include <ArduinoJson.h>
+#if  defined(ESP32)
 #include <WiFi.h>
+#include <esp_task_wdt.h>                                         // https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/misc_system_api.html
+#define WDT_TIMEOUT   3                                           // define a 3 seconds WDT (Watch Dog Timer)
+int BootReason        = 99;
+#elif defined(ESP8266)
+#include <ESP8266WiFi.h>
+#endif
 #include <PubSubClient.h>
 
 // --------------- WIFI ---------------
 
 void SetupWifi() {
   delay(10);
+  #if defined(ESP32)
   console->println();
   console->print("Connecting to ");
   console->println(WIFI_SSID);
+  #endif
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  #if defined(ESP32)
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -24,6 +35,8 @@ void SetupWifi() {
   console->println("WiFi connected");
   console->println("IP address: ");
   console->println(WiFi.localIP());
+
+  #endif
 }
 
 // --------------- MQTT ---------------
@@ -33,13 +46,19 @@ PubSubClient mqtt_client(wifi_client);
 
 void ReconnectMQTT() {
   while (!mqtt_client.connected()) {
+    #if  defined(ESP32)
     console->print("Attempting MQTT connection...");
+    #endif
     if (mqtt_client.connect("ESPClient", MQTT_USER, MQTT_PASS)) {
+      #if  defined(ESP32)
       console->println("connected");
+      #endif
     } else {
+      #if  defined(ESP32)
       console->print("failed, rc=");
       console->print(mqtt_client.state());
       console->println(" try again in 5 seconds");
+      #endif
       delay(5000);
     }
   }
@@ -105,7 +124,7 @@ void ParseReceivedData() {
   int hour = BytesToInt(decrpyted_message, 27, 28);
   int minute = BytesToInt(decrpyted_message, 28, 29);
   int second = BytesToInt(decrpyted_message, 29, 30);
-  char timestamp[19];
+  char timestamp[20];
   sprintf(timestamp, "%02d.%02d.%04d %02d:%02d:%02d", day, month, year, hour, minute, second);
 
   // Create JSON
@@ -123,7 +142,9 @@ void ParseReceivedData() {
   serializeJson(doc, payload);
 
   // Publish JSON
+  #if  defined(ESP32)
   console->println(payload);
+  #endif
   if (MQTT_ENABLED) {
     mqtt_client.publish(MQTT_TOPIC, payload, false);
   }
@@ -139,7 +160,9 @@ bool ValidateCRC() {
   int crc = CRC16.x25(message, 101);
   int expected_crc = received_data[103] * 256 + received_data[102];
   if (crc != expected_crc) {
+    #if  defined(ESP32)
     console->println("WARNING: CRC check failed");
+    #endif
     return false;
   }
   return true;
@@ -167,7 +190,26 @@ void DecryptMessage(byte decrpyted_message[74]) {
 // --------------- SETUP & LOOP ---------------
 
 void setup() {
+  #if  defined(ESP32)
   console->begin(CONSOLE_BAUD_RATE);
+
+  console->println("Configuring WatchDogTimeout WDT...");
+  esp_task_wdt_init(WDT_TIMEOUT, true);             // enable panic so ESP32 restarts
+  esp_task_wdt_add(NULL);                           // add current thread to WDT watch
+
+  BootReason = esp_reset_reason();
+    if ( BootReason == 1 ) {                          // Reset due to power-on event.
+           console->println("Reboot was because of Power-On!!");
+          }
+          
+    if ( BootReason == 6 ) {                          // Reset due to task watchdog.
+           console->println("Reboot was because of WDT!!");
+          }
+
+     console->print("Reset/Boot Reason was: "); 
+     console->println( BootReason );
+
+  #endif
   smart_meter->begin(SMARTMETER_BAUD_RATE);
   mbedtls_aes_init(&aes);
   mbedtls_aes_setkey_enc(&aes, KEY, 128);
@@ -183,4 +225,9 @@ void loop() {
   }
   mqtt_client.loop();
   ReadSerialData();
+  #if  defined(ESP32)
+  if ( millis() < 180000 ){
+    esp_task_wdt_reset();   // Added to repeatedly reset the Watch Dog Timer      
+  }
+  #endif
 }
