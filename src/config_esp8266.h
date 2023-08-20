@@ -1,12 +1,12 @@
 
 // --------------- DECRYPTION KEY ---------------
 
-// The decryption should be provided as byte array (i.e "7EA0" -> {0x7e, 0xa0})
+// The decryption key should be provided as byte array (i.e "7EA0" -> {0x7e, 0xa0})
 const byte KEY[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 // --------------- MQTT ---------------
 
-const bool MQTT_ENABLED = false;
+const bool MQTT_ENABLED = true;
 const char* WIFI_SSID = "ssid";
 const char* WIFI_PASS = "pass";
 const char* MQTT_SERVER = "127.0.0.1";
@@ -15,9 +15,13 @@ const char* MQTT_USER = "user";
 const char* MQTT_PASS = "pass";
 const char* MQTT_TOPIC = "homeassistant/sensor/smartmeter/state";
 
-// --------------- SERIAL PORTS ---------------
+// --------------- SMART METER ---------------
 
-const int CONSOLE_BAUD_RATE = 9600;
+HardwareSerial *smart_meter = &Serial;
 const int SMARTMETER_BAUD_RATE = 9600;
-HardwareSerial *console = &Serial;
-HardwareSerial *smart_meter = &Serial2;
+
+// --------------- LOGGING ---------------
+
+// Comment out or delete the next two lines to disable logging
+#define LOGGING_ENABLED
+const int SERIAL_MONITOR_BAUD_RATE = SMARTMETER_BAUD_RATE;  // because we use the same port

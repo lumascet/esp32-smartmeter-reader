@@ -4,3 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 /src/config.h
+.vscode
+build
+tests
+*/config.h
